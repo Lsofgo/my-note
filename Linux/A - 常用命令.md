@@ -4,11 +4,37 @@
 pip install -r requirements.txt -i https://repos.taikangcloud.com/repository/api/pypi/pypi/simple
 ```
 
-### npm指定源
+### npm
 
 ```shell
+# 全局安装目录
+npm config set prefix "C:\npm\node_global"
+# 缓存目录
+npm config set cache "C:\npm\node_cache"
+# 添加 C:\npm\node_global 添加到PATH中
+#添加 C:\npm\node_global\bin 添加到PATH中
+
 npm --registry https://registry.npm.taobao.org install <package name>
 ```
+
+### yarn
+
+```shell
+# 安装yarn
+npm install --registry https://registry.npm.taobao.org -g yarn
+
+# 全局安装目录
+yarn config set global-folder "C:\npm\node_global"
+# 缓存目录
+yarn config set cache-folder "C:\npm\node_cache"
+
+# 安装模块
+yarn global add --registry https://registry.npm.taobao.org @vue/cli
+```
+
+
+
+
 
 ### 服务器抓包
 
@@ -39,7 +65,7 @@ ls -ld /data_tkocr_share
 ### cifs挂载
 
 ```shell
-mount -t cifs //10.129.191.21/cssta_ingest_bj /cssta_ingest_bj -o username='cssta',password='密码',domain='BJYG-3',sec='ntlm',uid='appadmin',gid='appadmin'
+mount -t cifs //10.129.191.21/cssta_ingest_bj /cssta_ingest_bj -o username='cssta',password='密码',domain='S',sec='ntlm',uid='appadmin',gid='appadmin',vers=2.0
 ```
 
 ### LVM常用
