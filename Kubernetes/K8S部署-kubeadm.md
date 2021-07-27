@@ -153,7 +153,7 @@ NAME           STATUS     ROLES                  AGE     VERSION
 k8s-master01   NotReady   control-plane,master   8m10s   v1.20.7
 ```
 
-> 安装flannel网络驱动(已淘汰)
+> ~~安装flannel网络驱动(已淘汰)~~
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/a70459be0084506e4ec919aa1c114638878db11b/Documentation/kube-flannel.yml
@@ -227,7 +227,38 @@ node01.alec.com   NotReady   <none>   50s     v1.13.3
 等待一会，node节点会从master节点拉取flannel镜像，之后就会更新为Ready;
 ```
 
+### 1.4.3 添加Node节点到集群2
+
+kubeadm 默认token有效期为24h, 超过24h后再往集群中添加Node节点, 需要重新生成token;
+
+```shell
+# 安装docker kubeadm kubelet
+# 生成新的token
+[root@t-c7u9-k8smaster01 ~]# kubeadm token create
+zxd0s3.efgbvwz7p7ttgsl5
+# 查看token
+[root@t-c7u9-k8smaster01 ~]# kubeadm token list
+TOKEN                     TTL         EXPIRES                     USAGES                   DESCRIPTION                                                EXTRA GROUPS
+zxd0s3.efgbvwz7p7ttgsl5   23h         2021-07-28T15:11:01+08:00   authentication,signing   <none>                                                     system:bootstrappers:kubeadm:default-node-token
+
+# 获取ca证书sha256编码hash值
+[root@t-c7u9-k8smaster01 ~]# openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+55024eadd986a38ccbd4eeaaafda9e710a6b3c56a0dd0ca73d6b61cc8f2673ae
+
+# 节点加入集群
+[root@t-c7u9-k8snode02 ~]# kubeadm join 192.168.101.131:6443 --token zxd0s3.efgbvwz7p7ttgsl5 \
+--discovery-token-ca-cert-hash sha256:55024eadd986a38ccbd4eeaaafda9e710a6b3c56a0dd0ca73d6b61cc8f2673ae \
+--v=5
+```
+
+
+
+
+
+
+
 ## 1.5 测试k8s集群
+
 ```
 kubectl create deployment nginx --image=nginx
 kubectl expose deployment nginx --port=80 --type=NodePort
