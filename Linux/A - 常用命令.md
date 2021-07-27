@@ -1,7 +1,14 @@
+[toc]
+
 ### pip 指定源
 
 ```shell
-pip install -r requirements.txt -i https://repos.taikangcloud.com/repository/api/pypi/pypi/simple
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+```shell
+# 生成 requirements.txt
+pip freeze > requirements.txt
 ```
 
 ### npm
@@ -31,10 +38,6 @@ yarn config set cache-folder "C:\npm\node_cache"
 # 安装模块
 yarn global add --registry https://registry.npm.taobao.org @vue/cli
 ```
-
-
-
-
 
 ### 服务器抓包
 
@@ -108,8 +111,6 @@ echo -e "\n${UUID}\t${MOUNT_POINT}\txfs\tdefaults\t0 0" >> /etc/fstab && \
 mount -a
 ```
 
-
-
 ### curl
 
 ```shell
@@ -146,4 +147,6 @@ touch /etc/rc.local.appadmin
 chown appadmin.appadmin /etc/rc.local.appadmin
 chmod u+x /etc/rc.local.appadmin
 ```
+
+### visudo
 

@@ -698,9 +698,15 @@ docker build -t 仓库名[:tag] ./
 - LABEL指令能够内一个镜像添加元数据
 - 一个LABEL是一个键值对
 
+```
+LABEL amintainer="lance <wangkuncoin@163.com>"
+```
+
+
+
 ### 6.2.4 COPY
 
-- 用于从DOcker主机复制文件至创建的新镜像文件
+- 用于从Docker主机复制文件至创建的新镜像文件
 
 ```
 语法：
@@ -1080,6 +1086,21 @@ e5016b4c00bf   my-nginx:v1.1   "/bin/bash -c /home/…"   About a minute ago   U
 
 ## 7.1 通过registry镜像
 
+配置docker信任仓库地址
+
+```shell
+vim /etc/docker/daemon.json
+{
+"registry-mirrors": ["https://rfj1yucr.mirror.aliyuncs.com"],
+"insecure-registries":["my-registry.alec.com:5000"]
+}
+
+systemctl daemon-reload
+systemctl restart docker
+```
+
+
+
 拉取运行 registry镜像
 
 ```
@@ -1089,7 +1110,7 @@ registry                             The Docker Registry 2.0 implementation for 
 
 [root@localhost ~]# docker pull registry
 
-[root@localhost ~]# docker run -d -p 5000:5000 --name my-registry registry:latest
+[root@localhost ~]# docker run -d --restart always -p 5000:5000 --name my-registry registry:latest
 ```
 
 ```
@@ -1276,7 +1297,6 @@ docker-compose [-f <arg>...] [options] [COMMAND] [ARGS...]
 ```
 检查compose配置文件语法；
 ```
-
 
 
 
