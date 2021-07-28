@@ -208,13 +208,15 @@ wget https://github.com/prometheus/pushgateway/releases/download/v1.4.1/pushgate
 
 ```shell
 wget https://github.com/prometheus/alertmanager/releases/download/v0.22.2/alertmanager-0.22.2.linux-amd64.tar.gz
-
-
+tar -xf alertmanager-0.22.2.linux-amd64.tar.gz -C /usr/local/
+cd /usr/local/alertmanager-0.22.2.linux-amd64/
 ```
 
-
-
 **启动**
+
+```shell
+no./alertmanager --config.file="alertmanager.yml &
+```
 
 
 
