@@ -2,6 +2,8 @@
 
 [toc]
 
+# Prometheus基础
+
 ## 基本原理
 
 ### 时序数据库(TSDB)
@@ -173,6 +175,69 @@ nohup ./prometheus --storage.tsdb.path=./data --storage.tsdb.retention.time=168h
 | --web.enable-lifecycle            | 提供类似nginx的reload功能       |
 | --storage.tsdb.no-lockfile        | 如果用k8s的deployment管理要开启 |
 
+**访问** http://192.168.101.133:9090/
+
+
+
+#### exporter
+
+•node_exporter 主机监控
+
+•Redis/memcache/mongo/mysql/kafka/rabbitmq等db及缓存监控
+
+•Blackbox_export 一些http/tcp/ping/dns监控等等
+
+•haproxy_exporter
+
+•consul_exporter 支持外接配置中心
+
+•graphite_exporter 第三方数据源
+
+##### node_exporter
+
+**安装**
+
+```shell
+wget https://github.com/prometheus/node_exporter/releases/download/v1.2.0/node_exporter-1.2.0.linux-amd64.tar.gz
+tar -xf node_exporter-1.2.0.linux-amd64.tar.gz -C /usr/local
+cd /usr/local/node_exporter-1.2.0.linux-amd64/
+```
+
+**启动**
+
+```
+nohup ./node_exporter &
+```
+
+**把node_exporter加到prometheus**
+
+```shell
+cd /usr/local/prometheus-2.28.1.linux-amd64/
+
+vim nodediscovery.json
+[
+    {
+        "targets": ["192.168.101.133:9100"],
+        "labels": {
+            "instance": "jenkins"
+        }
+    }
+]
+
+vim prometheus.yml
+  # 追加
+  - job_name: "jenkins"
+    file_sd_configs:
+    - files:
+      - /usr/local/prometheus-2.28.1.linux-amd64/nodediscovery.json
+
+# 重启prometheus
+kill `ps -ef | grep prometheus | grep -v grep | awk '{print $2}'`
+nohup ./prometheus --storage.tsdb.path=./data --storage.tsdb.retention.time=168h --web.enable-lifecycle --storage.tsdb.no-lockfile &
+```
+
+
+
 #### pushgateway
 
 下载地址: https://prometheus.io/download/
@@ -191,6 +256,12 @@ nohup ./prometheus --storage.tsdb.path=./data --storage.tsdb.retention.time=168h
 
 ```shell
 wget https://github.com/prometheus/pushgateway/releases/download/v1.4.1/pushgateway-1.4.1.linux-amd64.tar.gz
+```
+
+**启动**
+
+```shell
+nohup ./pushgateway &
 ```
 
 
@@ -218,18 +289,184 @@ cd /usr/local/alertmanager-0.22.2.linux-amd64/
 no./alertmanager --config.file="alertmanager.yml &
 ```
 
-
-
-##### 报警规则
-
-##### 接收
-
-##### 抑制
-
-##### 报警分组
+**访问**: http://192.168.101.133:9093/
 
 
 
+## 数据类型
+
+### 数据格式
+
+metrics_name{label}@时间戳 => 监控值
+
+```
+<-------------------metric-------------------><-timestamp-><-value->
+http_request_total{status="200", method="GET"}@1434417560938 => 94355
+http_request_total{status="200", method="GET"}@1434417561287 => 94334
+http_request_total{status="200", method="GET"}@1434417560938 => 38473
+```
+
+### 数据类型
+
+- counter(计数器类型)
+  - Counter类型的指标的工作方式和计数器一样，只增不减（除非系统发生了重置）
+  - Counter一般用于累计值，例如记录请求次数、任务完成数、错误发生次数
+  - 通常来讲，许多指标counter本身并没有什么意义，有意义的是counter随时间的变化率
+- gauge(仪表盘类型)
+  - Gauge是可增可减的指标类，可以用于反应当前应用的状态
+  - 比如机器内存，磁盘可用空间大小等等
+  - node_memory_MemAvailable_bytes
+  - node_filesystem_avail_bytes
+- histogram(直方图类型) *客户端计算*
+  - Histogram 由 < basename>_bucket, < basename>_sum，_count 组成(一个指标有这三个值, 就是直方图类型)
+  - 主要用于表示一段时间范围内对数据进行采样（通常是请求持续时间或响应大小），并能够对其指定区间以及总数进行统计，通常它采集的数据展示为直方图
+  - 事件发生的总次数，basename_count
+  - 所有事件产生值的大小的总和，basename_sum
+  - 事件产生的值分布在bucket中的次数
+  - histogram可以计算分位数
+    - histogram_quantile()函数可以将histgram指标的分位数统计出来
+    - histogram_quantile(0.99,  sum(irate(grpc_server_handling_seconds_bucket{}[1m])) by (grpc_method,le))
+- summary(摘要类型)
+  - Summary类型和Histogram类型相似，由< basename>{quantile=“< φ>”}，< basename>_sum，< basename>_count组成
+  - 主要用于表示一段时间内数据采样结果（通常时请求持续时间或响应大小），它直接存储了分位数据，而不是根据统计区间计算出来的
+
+> histogram和summary区别
+
+- Histogram指标直接反应了在不同区间内样本的个数，区间通过标签len进行定义
+
+  同时对于Histogram的指标，我们还可以通过histogram_quantile()函数计算出其值的分位数
+
+- 而Sumamry的分位数则是直接在客户端计算完成
+
+- 因此对于分位数的计算而言，Summary在通过PromQL进行查询时有更好的性能表现，而Histogram则会消耗更多的资源。
+
+  反之对于客户端而言Histogram消耗的资源更少
+
+  在选择这两种方式时用户应该按照自己的实际场景进行选择
+
+
+
+## PromQL
+
+- PromQL (Prometheus Query Language) 是 Prometheus 自己开发的数据查询 DSL 语言，语言表现力非常丰富，内置函数很多，在日常数据可视化以及rule 告警中都会使用到它
+
+- 我们把每个查询对象的名字叫做metrics，类似于mysql中的表名
+
+### 基本查询
+
+直接输入目标名, 查询
+
+![image-20210729144903600](media/image-20210729144903600.png)
+
+#### 查询结果
+
+查询结果可以分为三类
+
+- 瞬时数据 (Instant vector): 包含一组时序，每个时序只有一个点，例如：prometheus_http_requests_total
+
+- 区间数据 (Range vector): 包含一组时序，每个时序有多个点，例如：prometheus_http_requests_total [5m]
+
+- 纯量数据 (Scalar): 纯量只有一个数字，没有时序，例如：count(prometheus_http_requests_total)
+
+### 通过Label查询
+
+使用label 可以对简单查询的结果进行过滤
+
+- prometheus_http_requests_total{code="200"}
+
+  ![image-20210729140515846](media/image-20210729140515846.png)
+
+- And 逻辑直接,分割：prometheus_http_requests_total{code="200",job="prometheus"}
+
+- 还支持正则匹配：用 =~、!~ 表示正则：prometheus_http_requests_total{code =~ "2.*|3.*",handler !~ "/alert.*" ,job="prometheus"}
+
+  - =~ 表示显示匹配到的内容
+  - !~ 表示不显示匹配到的内容
+
+  ![image-20210729140455917](media/image-20210729140455917.png)
+
+- 后面可以加时间范围：通过[time]来实现：prometheus_http_requests_total{code =~ "2.*|3.*",handler=~ "/alert.*" ,job="prometheus"}[5m]
+
+### 算数运算
+
+ - 加减乘除等：+，-，*，/，%，^
+
+ - 比较运算：==，!=，>，<，>=，<=
+
+ - 逻辑运算and，or
+
+ - 聚合运算：sum，min，max，avg，stddev，stdvar，count，topk等
+
+ - 内置函数：rate，irate，abs，ceil，increse，sort，sort_desc等等
+
+![image-20210729141235741](media/image-20210729141235741.png)
+
+> 常用查询举例
+
+```
+# 五分钟的cpu平均使用率
+100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+#可用内存百分比
+(node_memory_MemAvailable_bytes / (node_memory_MemTotal_bytes))* 100
+
+#磁盘一分钟读的速率
+irate(node_disk_reads_completed_total{instance=~"$node"}[1m])
+
+#网络流量
+irate(node_network_receive_bytes_total{device!~‘tap.*|veth.*|br.*|docker.*|virbr*|lo*’}[5m])*8
+```
+
+## node_exporter
+
+### textfile收集器
+
+可以做自定义指标, 用来做一些脚本或计划任务无法抓取的指标, 或者为主机提供上下文静态指标
+
+textfile的监控指标存储在 .prom 文件中
+
+```shell
+cd /usr/local/node_exporter-1.2.0.linux-amd64
+mkdir textfile_collector
+cd textfile_collector
+
+vim metadata.prom
+metadata{role="jenkins_server", datacenter="BJ"} 1
+
+# 重启node_exporter, 增加--collector.textfile.directory选项, 指向textfile_collector目录
+```
+
+可以在 Graph 中找到 metadata 监控项
+
+![image-20210729171048273](media/image-20210729171048273.png)
+
+### systemd收集器
+
+使用 --collector.systemd 选项, 启用systemd收集器, 用来记录systemd管理的服务数
+
+可以使用 --collector.systemd.unit-include 添加白名单, 让需要关注的服务被监控到(待验证)
+
+可以使用 --collector.systemd.unit-exclude 添加黑名单, 把不想监控的指标加进去(待验证)
+
+
+
+### 启动node_exporter
+
+对于默认的一些指标比如 --collector.nvme 如果不想收集, 可以在启动参数中添加 --no-collector.nvme 的方式disable掉
+
+```shell
+nohup ./node_exporter \
+--collector.textfile.directory="./textfile_collector" \
+--collector.systemd \
+--collector.systemd.unit-include=".+(docker|sshd|ntpd).service" \
+--no-collector.nvme \
+&
+```
+
+### 把node_exporter添加到Prometheus
+
+```yaml
+```
 
 
 
@@ -239,22 +476,71 @@ no./alertmanager --config.file="alertmanager.yml &
 
 
 
+## Rule
+
+Rule 分为两类:
+
+- recording rules 记录规则
+- alerting rule 报警规则
+
+在配置文件 prometheus.yml 中引入rule规则
+
+```
+rule_files:
+  - "./rules/rule_*.yml"
+```
+
+### recording rules
 
 
 
+### alerting rule
 
 
 
+## Label
+
+Label能够让我们知道监控项目的来源端口方法等等，同时label也为prometheus提供了丰富的聚合和查询等功能
+
+### label 用法
+
+ - Keep 只保留符合匹配的标签
+ - Drop 丢到符合匹配的标签
+ - 函数用法label_replace() label_join()
 
 
 
+# Prometheus实战
+
+## 环境准备
+
+- 安装Prometheus Alertmanager Pushgateway
+
+- 安装Grafana
+
+  ```shell
+  wget https://dl.grafana.com/oss/release/grafana-8.0.6-1.x86_64.rpm
+  yum install -y grafana-8.0.6-1.x86_64.rpm
+  
+  systemctl start grafana-server
+  systemctl enable grafana-server
+  
+  # 访问 http://192.168.101.133:3000	admin/admin
+  ```
+
+- 安装Docker
+
+## 配置服务
 
 
 
+## 启动服务
 
-
-
-
+1. Alertmanager
+2. Pushgateway
+3. node_export
+4. Prometheus
+5. grafana
 
 
 

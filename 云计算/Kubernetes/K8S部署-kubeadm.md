@@ -8,6 +8,9 @@
 部署架构：
     1台Master节点： kube-scheduler, kube-apiserver, kube-controller-manager, etcd
     2台Node节点：   kubelet, kubeproxy, docker
+
+Docker: docker-ce-19.03.7
+Kubernetes: 1.20.7
 ```
 
 ## 1.2 服务器配置
@@ -43,7 +46,6 @@ fs.nr_open=52706963
 EOF
 
 # 应用内核参数
-sysctl --system
 sysctl -p
 
 时间同步：
@@ -153,6 +155,8 @@ NAME           STATUS     ROLES                  AGE     VERSION
 k8s-master01   NotReady   control-plane,master   8m10s   v1.20.7
 ```
 
+### 1.3.2 安装网络驱动
+
 > ~~安装flannel网络驱动(已淘汰)~~
 
 ```
@@ -224,7 +228,7 @@ NAME              STATUS     ROLES    AGE     VERSION
 master.alec.com   Ready      master   4h28m   v1.13.3
 node01.alec.com   NotReady   <none>   50s     v1.13.3
 
-等待一会，node节点会从master节点拉取flannel镜像，之后就会更新为Ready;
+等待一会，node节点会从master节点拉取calico镜像，之后就会更新为Ready;
 ```
 
 ### 1.4.3 添加Node节点到集群2
@@ -251,9 +255,15 @@ zxd0s3.efgbvwz7p7ttgsl5   23h         2021-07-28T15:11:01+08:00   authentication
 --v=5
 ```
 
+> 脚本: 生成加入集群命令
 
-
-
+```shell
+#!/bin/bash
+APISERVER="192.168.101.131:6443"
+TOKEN=$(kubeadm token create)
+HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //')
+echo "kubeadm join $APISERVER --token $TOKEN --discovery-token-ca-cert-hash sha256:$HASH --v=5"
+```
 
 
 
