@@ -21,8 +21,7 @@ chmod 755 /data/sftp/sftpuser
 mkdir /data/sftp/sftpuser/upload
 chmod 755 /data/sftp/sftpuser/upload
 chown sftpuser:sftp /data/sftp/sftpuser/upload
-vi /etc/selinux/config
-setenforce 0
+
 service sshd restart
 ```
 

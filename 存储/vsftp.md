@@ -24,8 +24,6 @@ userlist_enable=YES
 pasv_address=10.130.103.150
 ```
 
-  anonymous_enable=NO  local_enable=YES  write_enable=YES  local_umask=022  dirmessage_enable=YES  xferlog_enable=YES  connect_from_port_20=YES  xferlog_std_format=YES  chroot_local_user=YES  listen=YES  pam_service_name=vsftpd  userlist_enable=YES  pasv_address=10.130.103.150  
-
 ### 虚拟用户
 
 创建用户数据库文件, 第一行是虚拟用户, 第二行是密码

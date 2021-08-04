@@ -38,3 +38,9 @@ git push origin master
 
    
 
+```
+git fetch origin master:temp
+git merge temp
+git branch -d temp
+```
+
